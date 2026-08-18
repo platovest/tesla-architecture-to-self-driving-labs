@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>特斯拉架构思想 → 自驱动实验室 Self-Driving Labs</title>
+<meta name="description" content="SDL 是 AI for Science 走向物理实验世界的主要载体。本文把特斯拉的数据引擎、影子模式、干预率指标等八个机制逐项判定能否迁移，并给出五条反面教训与六步落地路径。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="特斯拉架构思想 → 自驱动实验室 Self-Driving Labs">
+<meta property="og:description" content="SDL 是 AI for Science 走向物理实验世界的主要载体。本文把特斯拉的数据引擎、影子模式、干预率指标等八个机制逐项判定能否迁移，并给出五条反面教训与六步落地路径。">
+<meta property="og:image" content="https://platovest.github.io/tesla-architecture-to-self-driving-labs/cover-square.png">
+<meta property="og:url" content="https://platovest.github.io/tesla-architecture-to-self-driving-labs/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="特斯拉架构思想 → 自驱动实验室 Self-Driving Labs">
+<meta name="twitter:description" content="SDL 是 AI for Science 走向物理实验世界的主要载体。本文把特斯拉的数据引擎、影子模式、干预率指标等八个机制逐项判定能否迁移，并给出五条反面教训与六步落地路径。">
+<meta name="twitter:image" content="https://platovest.github.io/tesla-architecture-to-self-driving-labs/cover-square.png">
+<link rel="canonical" href="https://platovest.github.io/tesla-architecture-to-self-driving-labs/">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Noto+Serif+SC:wght@500;600;700&display=swap');
+:root{
+  --ink:#1b2029;--sub:#414b59;--muted:#7b8695;
+  --line:#e7eaef;--hair:#eef1f5;--navy:#152743;
+  --accent:#c02418;--accent-soft:#f7e7e3;
+  --good-bg:#e6f4ec;--good:#157347;--warn-bg:#fbf1de;--warn:#a5680f;--mut-bg:#edeff2;--mut:#66707d;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;color:var(--ink);font-size:16px;line-height:1.85;
+  background:radial-gradient(1200px 620px at 50% -220px,#f4f7fb,#e9edf2);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC","Noto Sans CJK SC",sans-serif;
+  padding:44px 18px 72px;}
+.sheet{position:relative;overflow:hidden;max-width:1160px;margin:0 auto;background:#fff;
+  border:1px solid #e9edf2;border-radius:16px;padding:56px 52px 54px;
+  box-shadow:0 1px 2px rgba(20,30,50,.05),0 26px 64px rgba(20,35,60,.10);}
+.sheet::before{content:"";position:absolute;top:0;left:0;right:0;height:6px;
+  background:linear-gradient(90deg,var(--accent),#d64a2a 52%,var(--navy));}
+.title{font-size:31px;line-height:1.32;font-weight:800;letter-spacing:-.01em;color:var(--navy);margin:14px 0 14px;}
+.title-rule{height:3px;width:76px;border-radius:2px;background:var(--accent);margin:0 0 12px;}
+.byline{color:var(--muted);font-size:14px;font-weight:500;margin:0 0 6px;}
+.callout{max-width:840px;background:#f5f8fc;border:1px solid #e5edf6;border-left:4px solid var(--navy);
+  border-radius:10px;padding:15px 20px;margin:22px 0 8px;color:var(--sub);font-size:15px;line-height:1.82;}
+.callout p{margin:0 0 8px}.callout p:last-child{margin:0}
+.callout.note{background:#fdf7ea;border-color:#f1e3c2;border-left-color:#d09a2c;color:#6a541e;}
+.callout.vision{background:#f2f6fd;border-color:#dbe6f7;border-left-color:#1d4e9e;color:#2b3b55;}
+.section{max-width:900px;font-size:20px;font-weight:700;color:var(--navy);line-height:1.42;
+  position:relative;margin:42px 0 16px;padding:0 0 10px 15px;border-bottom:1px solid var(--hair);}
+.section::before{content:"";position:absolute;left:0;top:3px;bottom:12px;width:5px;border-radius:3px;background:var(--accent);}
+.subsection{max-width:900px;font-size:16.5px;font-weight:700;color:var(--navy);margin:26px 0 10px;}
+p{max-width:840px;margin:0 0 14px}
+strong{font-weight:700;color:#0f1b30}
+code{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;font-size:.86em;
+  background:#f1f3f6;border:1px solid #e5e9ee;border-radius:5px;padding:.5px 5px;color:#b23417;}
+ol{counter-reset:li;list-style:none;padding:0;margin:16px 0}
+ol>li{counter-increment:li;position:relative;max-width:840px;padding:2px 0 0 42px;margin:0 0 15px;line-height:1.82}
+ol>li::before{content:counter(li);position:absolute;left:0;top:0;width:27px;height:27px;border-radius:50%;
+  background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:14px;
+  display:flex;align-items:center;justify-content:center;}
+ul{list-style:none;padding:0;margin:16px 0}
+ul>li{position:relative;max-width:840px;padding:0 0 0 24px;margin:0 0 13px;line-height:1.82}
+ul>li::before{content:"";position:absolute;left:3px;top:13px;width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.table-wrap{margin:18px 0 28px;overflow-x:auto;border:1px solid var(--line);border-radius:12px;
+  box-shadow:0 1px 2px rgba(20,30,50,.04);-webkit-overflow-scrolling:touch;}
+table{border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.72;background:#fff}
+table.t1{min-width:700px}table.t3{min-width:640px}
+thead th{background:var(--navy);color:#fff;font-weight:600;text-align:left;padding:13px 15px;font-size:13.5px;vertical-align:middle}
+thead th:first-child{text-align:center}
+tbody td{padding:13px 15px;vertical-align:top;border-top:1px solid var(--hair);color:#2b333f}
+tbody tr:nth-child(even){background:#fafbfd}
+tbody tr:hover{background:#f0f6fc}
+td.num{text-align:center}
+.rownum{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;
+  background:var(--navy);color:#fff;font-weight:700;font-size:14px}
+.badge{display:inline-block;padding:4px 11px;border-radius:8px;font-size:13px;font-weight:600;line-height:1.55}
+.badge.good{background:var(--good-bg);color:var(--good)}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.badge.mut{background:var(--mut-bg);color:var(--mut)}
+.badge strong{color:inherit}
+.license{max-width:840px;margin:40px 0 0;padding-top:16px;border-top:1px solid var(--hair);color:var(--muted);font-size:13.5px}
+.license a{color:var(--navy)}
+@media (max-width:760px){
+  body{padding:14px 8px}
+  .sheet{padding:32px 20px;border-radius:12px}
+  .title{font-size:23px}
+  p,ol>li,ul>li,.callout,.section{max-width:none}
+  .lang-toggle{position:static;top:auto;right:auto;margin:0 0 16px auto;width:max-content}
+}
+@media print{
+  body{background:#fff;padding:0}
+  .sheet{box-shadow:none;border:none;max-width:none;border-radius:0;padding:20px 20px}
+  .sheet::before{position:static;height:5px}
+  .table-wrap{overflow:visible}
+  table.t1,table.t3{min-width:0}
+  table{font-size:10.5px}
+  thead th,tbody td{padding:7px 8px}
+  tr,li,.callout{break-inside:avoid}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+
+.lang-toggle{position:absolute;top:22px;right:24px;z-index:5;display:flex;gap:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(20,30,50,.08)}
+.lang-toggle button{border:0;background:#fff;color:var(--muted);font:inherit;font-size:13px;font-weight:600;padding:6px 14px;cursor:pointer}
+.lang-toggle button.active{background:var(--navy);color:#fff}
+[data-lang]{display:none}
+html[lang="zh-CN"] [data-lang="zh"]{display:block}
+html[lang="en"] [data-lang="en"]{display:block}
+@media print{.lang-toggle{display:none}}
+</style>
+</head>
+<body>
+<main class="sheet">
+<div class="lang-toggle" role="group" aria-label="Language">
+<button id="btn-zh" onclick="setLang('zh-CN')">中文</button>
+<button id="btn-en" onclick="setLang('en')">EN</button>
+</div>
+<div data-lang="zh">
+
+<h1 class="title">特斯拉架构思想 → 自驱动实验室 Self-Driving Labs</h1>
+<div class="title-rule"></div>
+<p class="byline">作者：platovest ｜ 2026-08 ｜ v1.0 ｜ CC BY-SA 4.0 ｜ <a href="https://github.com/platovest/tesla-architecture-to-self-driving-labs">开源地址</a></p>
+<div class="callout intro"><p>本文探讨：把特斯拉自动驾驶的架构思想 + 开源可参考件，迁移到科研的自驱动实验室（Self-Driving Labs，SDL），是否成立、如何落地。</p><p>范围覆盖全领域 SDL：化学合成、生物/菌株工程、蛋白与抗体、器件与材料、流程优化。</p><p>定位依据：AI for Science 的代表性进展（AlphaFold 一类）集中在软件层，SDL 是它<strong>走向物理实验世界的主要载体</strong>。</p><p>证据标注：[论文]/[官方]/[媒体]/[preprint]/[分析]</p></div>
+
+<h2 class="section">0. 一句话结论</h2>
+<p><strong>类比早已成立——"self-driving lab"这个词本身就借鉴自 self-driving car；但把特斯拉架构逐要素系统平移到 SDL，尚无系统性工作（空缺叙事位）。</strong> 把特斯拉思想拆成两层后判定清晰：</p>
+<ul>
+<li><strong>系统工程层</strong>（数据引擎、统一遥测、影子模式、干预率北极星、金丝雀发布、蒸馏下沉、安全分层）：迁移<strong>普适成立</strong>，且 SDL 领域正在自发重新发明它——Nature Reviews Chemistry 的 SDL 十年综述把下一阶段框定为 <strong>scalability / generalizability / provenance-complete experimentation</strong> 三要求[论文]，几乎就是数据引擎哲学的科研翻译。</li>
+<li><strong>学习范式层</strong>（海量同质数据上的端到端模仿学习）：<strong>今天部分成立</strong>，三个约束（缺少 fleet 数据、目标函数反分布、真值验证昂贵）各有动态消解路径（§4）——它们是时间索引的约束，不是定律。</li>
+</ul>
+<p>开源件层面，真正有参考价值的是特斯拉的<strong>两份"规格"</strong>（fleet-telemetry 遥测架构、vehicle-command 签名命令协议）而非代码；同样重要的是<strong>五条反面教训</strong>——特斯拉发展中的教训在科研语境下逐条有对应物。</p>
+
+<h2 class="section">1. 系统工程层：八个机制的迁移判定</h2>
+<div class="table-wrap"><table class="t1"><colgroup><col style="width:5%"><col style="width:18%"><col style="width:32%"><col style="width:13%"><col style="width:32%"></colgroup><thead><tr><th>#</th><th>特斯拉机制</th><th>SDL 领域现状（2026-08）</th><th>判定</th><th>落地动作</th></tr></thead><tbody>
+<tr><td class="num"><span class="rownum">1</span></td><td><strong>数据引擎/车队学习</strong>：大规模采集→自动筛难例→训练→OTA 部署→再采集</td><td>闭环主动学习是 SDL 的定义性内核[论文: Chem. Rev. 2024]；多实验室"车队"有硬案例：<strong>ACDC</strong>（Science 2024，三大洲 5 实验室共享一个云端 AI 大脑异步闭环，发现 21 种有机激光材料）[论文]；Acceleration Consortium 全球 30+ SDL、2 亿加元[官方]；NSF 拟投 1 亿美元建云实验室国家网络[官方]。联邦学习式共享模型权重的 SDL 车队：暂未见</td><td><span class="badge good">✅ 成立且部分被验证</span></td><td>闭环结果回灌已是 mini 数据引擎；补<strong>难例筛选</strong>（campaign 触发思想）：意外结果/高不确定度/模型分歧大的样本自动标记为下轮优先表征对象，而非均匀采样</td></tr>
+<tr><td class="num"><span class="rownum">2</span></td><td><strong>统一遥测 schema</strong>：单公司统一数百信号的 protobuf、config-driven、变化触发</td><td>科学界标准未收敛：ESAMP（事件溯源 provenance，&gt;600 万测量落地）/MaRDA/领域本体（电池 BattINFO、化学 ORD 等）并存[论文]——单公司 vs 多机构是最大结构差异。综述已把 provenance-complete 列为下一阶段三要求之一，"schema 先行"升格为领域共识</td><td><span class="badge good">✅ 高价值切入点</span></td><td><strong>单实验室内部完全可做到特斯拉式统一</strong>：第一天定自家实验数据 schema（本体按域选择，provenance 结构参照 ESAMP 三实体——其结构不依赖具体领域），每个样品全生命周期一条链。这是私有数据价值的工程前提</td></tr>
+<tr><td class="num"><span class="rownum">3</span></td><td><strong>影子模式</strong>：新模型"只算不控"，真实场景比对新旧决策分歧</td><td>无成体系命名实践；零散等价物：数字孪生 dry-run[论文]、离线闭环基准（MADE，ICML 2026）[论文]、human-in-the-loop 分级对照[论文]</td><td><span class="badge warn">🟡 空缺位（可占，等价物零散存在，闭环价值待验证）</span></td><td>加<strong>影子开关</strong>：planner 每轮推荐与人类选择并行记录、只记分歧不生效，定期对账谁更快达成目标。且分歧台账天然生成<strong>成对偏好数据</strong>（人类选择 vs agent 提案），是后续 RL 精修的训练原料——影子模式同时是验证工具和数据源</td></tr>
+<tr><td class="num"><span class="rownum">4</span></td><td><strong>干预率北极星</strong>：干预间隔里程（miles between interventions，本文“干预率”取其倒数方向，即越低越好）作为唯一贯穿性运营指标</td><td>领域有六级自主度分级（参照 SAE J3016）[论文: Nat. Rev. Chem. 2025]，但<strong>分级是静态标签，缺连续运营曲线</strong></td><td><span class="badge good">✅ 空缺位（可占，机制已在特斯拉侧充分验证，SDL 侧仅缺实践）</span></td><td>定义"无干预实验数/无干预闭环轮数"，第一天开始度量。同时是模型质量指标、信任构建叙事、对外沟通的锚（对外锚定干预率曲线而非"全自主"，规避宣传风险）</td></tr>
+<tr><td class="num"><span class="rownum">5</span></td><td><strong>三层安全架构</strong>：决策/执行物理分离，fail-safe</td><td>学界已显式借鉴汽车安全概念：Safe-SDL 引入 ODD/SOTIF+控制屏障函数[preprint]；LAP 协议明言物理互锁是最后防线[preprint]；实验室对标 PLe/SIL3（ISO 13849/IEC 62061）而非 ASIL-D</td><td><span class="badge good">✅ 有现成标准路径</span></td><td>①决策 AI 永不直连执行器；②危险源配软件之外的独立硬件限位；③急停回路不过任何软件；④无人命风险场景 fail-safe 足够，不必为 fail-operational 付冗余成本。跨领域时危险源分析按域替换（生物侧 BSL 分级），原则不变</td></tr>
+<tr><td class="num"><span class="rownum">6</span></td><td><strong>模仿→强化两段式</strong>：车队示范打底，仿真+奖励精修</td><td>对应形态存在：文献/历史数据热启动 BO（模仿段）+ 仿真器闭环（强化段安全代练场）[论文]</td><td><span class="badge good">✅ 已隐含在闭环</span></td><td>把两段显式命名并分别度量。<strong>价值重估</strong>：模仿学习得到"平均科学家执行力"不是缺陷是里程碑——培养一个平均水平人类科学家 ≈ 20+ 年教育 + 5–7 年 PhD/博后 + 数十万美元且不可复制；同等执行水平的模型边际复制成本趋近零、可 24/7、可蒸馏、可联邦。模仿解决<strong>规模问题</strong>，探索目标解决<strong>前沿问题</strong>——叠加而非替代</td></tr>
+<tr><td class="num"><span class="rownum">7</span></td><td><strong>蒸馏下沉</strong>：v14 Lite 把新硬件上的行为蒸馏进老硬件算力/传感器配置（2026-07 wide release）[媒体]</td><td>SDL 已有 <strong>frugal twin</strong>（低成本复制品）概念，缺"主平台 policy → frugal twin"的系统实践</td><td><span class="badge good">✅ 方向刚被工程验证</span></td><td>主平台学到的 policy 蒸馏到低成本复制品，横向复制第二、三工作站——"从一台车到车队"的起点</td></tr>
+<tr><td class="num"><span class="rownum">8</span></td><td><strong>金丝雀发布</strong>：&lt;0.1% 车队先行、遥测门控放量</td><td>SDL 无对应实践</td><td><span class="badge good">✅ 可直接沿用</span></td><td>planner 策略版本化 + 单站点试点 + 指标门控推全，工程量近零</td></tr>
+</tbody></table></div>
+
+<h2 class="section">2. 反面清单：不该平移的五条</h2>
+<ol>
+<li><strong>全押端到端需审慎</strong>。特斯拉端到端提升能力上限、但把验证成本推高（验证层是最薄弱一环）。SDL 现状本就是模块化+LLM agent 编排，纯端到端（原始谱图→单一大模型→实验决策）暂无落地系统，且科学需要机理可解释。→ 起点保持模块化管线；但注意特斯拉自己的轨迹是"端到端之后再叠 RL 精修"——SDL 的演化路径不是"永远模块化"，而是<strong>模块化 + 逐模块神经化替换</strong>，替换节奏由验证成本决定（§4 约束三）。</li>
+<li><strong>警惕为降本牺牲真值来源</strong>。特斯拉纯视觉路线移除雷达/超声波，验证阶段仍以激光雷达做真值标定。科研同构风险：为省钱砍掉高保真锚定/原位表征，只信廉价代理指标——廉价代理可能系统性高估性能（古德哈特定律）。→ 高保真锚定不是可选项，是防止系统"高效地跑偏"的真值通道。</li>
+<li><strong>对宣传口径保持严格验证</strong>。规格参数基本可信、倍数宣传挑口径、时间表按历史兑现率打折。科研侧同样成立：某自主合成工作"17 天合成 41 种新化合物"（Nature 2023）曾被同行就新颖性与表征标准提出讨论，作者于 2026-01 发布更正[论文+媒体]。→ 读 SDL 论文产出数字，先过"预测→合成→有用"三关审。</li>
+<li><strong>对"未来软件会解锁"的能力承诺审慎</strong>。采购仪器/机器人平台时，厂商承诺"以后 AI 功能升级解锁"的部分按零计价。</li>
+<li><strong>垂直整合不是教条（Dojo 教训）</strong>。特斯拉 2025-08 放弃自研训练芯片转外部供应商[媒体]。→ <strong>在数据闭环上垂直整合，在算力/机器人本体上不要</strong>：SDL 团队的钱应花在遥测与数据引擎，不在自研硬件。</li>
+</ol>
+
+<h2 class="section">3. 开源可参考件（三侧）</h2>
+<h3 class="subsection">3a. 特斯拉官方仓库（7 项，原文直读核实）</h3>
+<div class="table-wrap"><table class="t3"><colgroup><col style="width:13%"><col style="width:18%"><col style="width:12%"><col style="width:57%"></colgroup><thead><tr><th>仓库</th><th>许可证/活跃度</th><th>判定</th><th>参考价值</th></tr></thead><tbody>
+<tr><td><strong>vehicle-command</strong></td><td>Apache-2.0，活跃</td><td><span class="badge good"><strong>设计参考·价值最高</strong></span></td><td><code>pkg/protocol/protocol.md</code> 是"AI agent 只能经签名命令驱动物理设备"的现成规格（含测试向量）：ECDH 会话密钥 + 命令绑定设备身份/epoch/单调计数器/过期时间 + 密钥角色分权（只读/限动作，直接对应"采集 agent 不许动执行器"）+ 物理在场密钥登记。被提示注入的 LLM 伪造不出有效 counter/MAC。可作实验室命令认证层参考蓝本</td></tr>
+<tr><td><strong>fleet-telemetry</strong></td><td>Apache-2.0，很活跃</td><td><span class="badge good"><strong>设计参考</strong></span></td><td>设备 mTLS 直推 + 按 record 类型扇出多种总线 + ack 绑定落盘 + 服务端下发签名采集配置（字段集+最小间隔，变化触发）——与"仪器→数据湖"完全同构。参考架构重写薄服务端，不 fork</td></tr>
+<tr><td><strong>dashcam</strong></td><td>无许可证</td><td><span class="badge warn">做法参考、不可用</span></td><td>遥测 protobuf 逐帧嵌视频 SEI → 实验录像与传感器数据硬同步。用 ffmpeg/GStreamer 自建</td></tr>
+<tr><td><strong>fixed-containers</strong></td><td>MIT，活跃</td><td><span class="badge good">可用</span></td><td>C++20 无堆确定性容器，自建仪器固件即插即用</td></tr>
+<tr><td><strong>liblithium</strong></td><td>Apache-2.0，低频</td><td><span class="badge good">可用</span></td><td>签名固件更新，极省资源；合规互操作需换标准算法</td></tr>
+<tr><td><strong>ttpoe</strong></td><td>无 LICENSE，停更</td><td><span class="badge mut">无关</span></td><td>问题域相差 5–7 个数量级，TCP/MQTT 足够</td></tr>
+<tr><td><strong>buildroot / linux</strong></td><td>GPL 混合</td><td><span class="badge mut">无关</span></td><td>相对上游无增量，用上游 Buildroot LTS/Yocto</td></tr>
+</tbody></table></div>
+<div class="callout note"><p>附带经验：fleet-telemetry 漏洞 GO-2026-5553（被攻破单车凭据可冒充其它车辆伪造遥测）——<strong>设备身份必须绑定在传输凭据里逐条校验</strong>，不能信 payload 自报的身份字段。实验室同构：仪器数据绑定仪器证书。</p></div>
+<h3 class="subsection">3b. 特斯拉架构哲学的开源替身（特斯拉不开源模型与数据引擎本体，看这些）</h3>
+<ul>
+<li><strong>comma.ai openpilot</strong>：最接近 FSD 哲学的可读全栈——端到端小模型、车队数据引擎、干预信号采集、金丝雀发布的完整开源实现。研究"数据引擎怎么写成代码"看这里。</li>
+<li><strong>LeRobot（Hugging Face）</strong>："干预即标注 + 模仿学习基础设施"在具身领域的最活跃开源载体，与 SDL 机器人执行层直接相邻。</li>
+<li><strong>学界端到端复现脉络</strong>（UniAD/VAD → Large Driving Models 综述）：理解"端到端"的工程边界。</li>
+</ul>
+<h3 class="subsection">3c. SDL 侧可直接搭建的开源栈</h3>
+<div class="table-wrap"><table class="t3"><colgroup><col style="width:14%"><col style="width:22%"><col style="width:64%"></colgroup><thead><tr><th>层</th><th>对应特斯拉</th><th>开源件（2026-08 格局）</th></tr></thead><tbody>
+<tr><td><strong>编排/OS</strong></td><td>车辆软件栈</td><td><strong>MADSci</strong>（Argonne，领域无关微服务，JOSS 2026——全领域诉求首选）；ARES OS 2.0（低代码，已跨增材制造/湿化学/CVD）；ChemOS 2.0；Bluesky（大科学装置）；UniLabOS（AI-native，激进选项）</td></tr>
+<tr><td><strong>设备协议</strong></td><td>CAN/遥测</td><td>SiLA2、OPC-UA、MQTT、ROS；实验描述语言 XDL；多实验室网络 FINALES；总索引 awesome-self-driving-labs（Acceleration Consortium）</td></tr>
+<tr><td><strong>决策/planner</strong></td><td>规划网络</td><td>BoTorch/Ax、Atlas/Phoenics、BayBE（BO 仍是闭环主力）</td></tr>
+<tr><td><strong>Agent</strong></td><td>端到端网络（角色是"研究员"非"司机"）</td><td>Coscientist、ChemCrow、Virtual Lab 系；生物侧 LLM+多智能体+RAG+MCP 已成体系</td></tr>
+<tr><td><strong>仿真/世界模型</strong></td><td>神经仿真器</td><td>第一性原理仿真（DFT/MD/PDE/代谢模型）+ 开放数据集（OMat24/OMol25 等）训 surrogate——<strong>此层科研起点高于驾驶</strong></td></tr>
+</tbody></table></div>
+
+<h2 class="section">4. 学习范式层：三约束的动态消解路径</h2>
+<p>端到端模仿学习的前提（海量同质数据 + 分布内目标 + 廉价真值）今天在科研侧不完全成立，但三个约束都是<strong>时间索引的</strong>，各有消解机制。框架不是"成立/不成立"，而是"今天成立什么、什么条件下其余成立"。</p>
+<div class="table-wrap"><table class="t3"><colgroup><col style="width:26%"><col style="width:44%"><col style="width:30%"></colgroup><thead><tr><th>约束（2026 现状）</th><th>消解机制</th><th>触发条件/里程碑</th></tr></thead><tbody>
+<tr><td><strong>无 fleet 数据</strong>：上万任务 × 每任务几十~几千昂贵数据点</td><td>科研的 fleet 是<strong>被建出来的</strong>：provenance 标准统一 + 联邦网络（ACDC 已示范跨洲五实验室共享一个大脑）+ 云实验室聚合；机器人吞吐比人高 1–2 个量级，积累非线性</td><td>联网站点数 × 单站吞吐 × 数据互信 三者乘积过阈值——类比特斯拉 2016 年才开始 fleet learning</td></tr>
+<tr><td><strong>目标函数反分布</strong>：科学价值在分布外，模仿匹配分布</td><td>分层叠加：模仿学习铺"平均执行力"地板（§1.6 价值重估），其上叠信息增益/Bayesian surprise 探索目标 + RL-from-experiment-feedback；特斯拉自己也从纯模仿走向 RL 精修</td><td>探索目标需要便宜验证——与下一条互锁，一起松动</td></tr>
+<tr><td><strong>真值验证昂贵可争议</strong></td><td>验证本身是 SDL 最擅长的窄域任务，自动复现成本随铺开单调下降；provenance-complete 日志把第三方复核从"重做实验"降为"重放日志"</td><td>"自动复现一个结果"的成本 &lt; 人工评审一篇论文</td></tr>
+</tbody></table></div>
+<div class="callout vision"><p><strong>终局想象（设计牵引，非预测）</strong>：全球联邦化"科学车队"——每次实验（人做或机器做）都是一次带完整遥测的"行驶"，汇入共享科学 policy；新实验室加入即获得全网先验，本地数据反哺全局；"平均科学家执行力"成为像电力一样的基础设施，人类科学家整体上移到问题选择、目标设定与分布外判断。每步落地校验一条：<strong>是否朝这个终局单调推进</strong>。</p></div>
+
+<h2 class="section">5. 落地路径：六步（前三步零硬件投入）</h2>
+<ol>
+<li><strong>遥测先行</strong>：现有实验室每次实验（含人做的）→ provenance-complete 结构化日志（参数/原始数据/分析代码/结论/<strong>人的每次否决与修改及理由</strong>）。schema 先于任何硬件采购定稿。</li>
+<li><strong>干预率北极星</strong>：第一天定义并开始度量"干预间隔实验数"。</li>
+<li><strong>影子模式</strong>：planner 对每个真实实验并行提案不执行，分歧台账 + 假想收益对账；同时积累成对偏好数据。</li>
+<li><strong>窄域闭环</strong>：选成功信号最清晰的实验战役（campaign）——反应收率/蛋白表达量/菌株产量/器件效率，判据唯一：成功信号是否清晰无歧义，人保留 kill switch；安全层按 LAP 三层 + IEC 61010-2-081 + ISO 13849 PL 评估；命令认证参照 vehicle-command 规格（密钥登记+角色分权+防重放）。</li>
+<li><strong>蒸馏与复制</strong>：主平台 policy → frugal twin，横向复制第二、三工作站（v14 Lite 路线）。</li>
+<li><strong>联邦化</strong>：多站点共享模型与溯源数据（FINALES/MADSci 网络化方向），兑现车队学习，向 §4 终局收敛。</li>
+</ol>
+
+<h2 class="section">6. 可占的空缺叙事位</h2>
+<ol>
+<li><strong>"特斯拉数据引擎要素 → SDL"的显式系统化</strong>：名字类比与数据飞轮话术早已流行，但逐要素映射（采集 schema/难例触发/影子验证/干预率/安全分层/两段式学习/蒸馏下沉/金丝雀发布）尚无论文或白皮书系统整理——本文即初稿。</li>
+<li><strong>SDL 版"影子模式"的命名与流水线化</strong>：现有等价物零散未成体系；"新策略只推荐不执行、与人并行对账、分歧台账兼作偏好数据"的流水线无人命名——工程量小，方法论价值明显。</li>
+<li><strong>干预率作为 SDL 统一运营指标</strong>：六级自主度分级之外的连续曲线，无人在用。</li>
+</ol>
+
+<h2 class="section">7. 主要来源</h2>
+<ul>
+<li><strong>SDL 先例与综述</strong>：Nature Reviews Chemistry《The past, present and future of self-driving laboratories》(2026, s41570-026-00847-2)；Chem. Rev. 2024 SDL 综述 (acs.chemrev.4c00055)；Science 2024 ACDC (10.1126/science.adk9227)；A-Lab Nature 2023 (s41586-023-06734-w) + C&amp;EN 2026-01 作者更正；ESAMP (Digital Discovery 2023)；MaRDA (MRS Bulletin 2025)；ORD (JACS 2021)；数字孪生 (Nat. Comput. Sci. 2025)；MADE 基准 (arXiv:2601.20996)；互联实验室路线图 (arXiv:2506.17510)。</li>
+<li><strong>编排/开源栈</strong>：MADSci (JOSS 2026, 10.21105/joss.09416)；ARES OS 2.0 (arXiv:2604.03440)；ChemOS 2.0 (Matter 2024)；UniLabOS (arXiv:2512.21766)；awesome-self-driving-labs (Acceleration Consortium)。</li>
+<li><strong>特斯拉侧</strong>：teslamotors/{fleet-telemetry, vehicle-command, dashcam, fixed-containers, liblithium, ttpoe, buildroot, linux} 原文直读；pkg.go.dev GO-2026-5553；FSD v14 Lite wide release 报道 (2026-07)；Dojo 转向报道 (2025-08)；Large Driving Models 综述 (arXiv:2603.16050)；openpilot (github.com/commaai/openpilot)；LeRobot (github.com/huggingface/lerobot)。</li>
+<li><strong>安全</strong>：Nat. Rev. Chem. 2025《Steering towards safe self-driving laboratories》；Safe-SDL (arXiv:2602.15061)；LAP (arXiv:2606.03755)；IEC 61010-2-081、ISO 13849-1/IEC 62061、ISO 10218:2025；LabSafety Bench (NMI 2025)。</li>
+<li><strong>诚实边界</strong>：部分论文内部数字来自搜索摘要层，标[论文]者已多源交叉印证，标[preprint]者及所有关键数字，引用前请核对原文。</li>
+</ul>
+
+<div class="license">本文以 <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.zh-hans">CC BY-SA 4.0</a> 许可发布。转载改编请署名并以相同方式共享。</div>
+
+</div>
+<div data-lang="en">
+<h1 class="title">Tesla's Autonomy Architecture → Self-Driving Labs</h1>
+<div class="title-rule"></div>
+<p class="byline">Author: platovest · 2026-08 · v1.0 · CC BY-SA 4.0 · <a href="https://github.com/platovest/tesla-architecture-to-self-driving-labs">Repository</a></p>
+<div class="callout intro"><p>This article asks: can the architectural philosophy behind Tesla's autonomous driving stack — together with its open-source reference components — be transferred to Self-Driving Labs (SDL), a core infrastructure pattern of AI for Science, in scientific research, is such a transfer sound, and how would it be implemented?</p><p>The scope covers SDL across all domains: chemical synthesis, biology/strain engineering, proteins and antibodies, devices and materials, and process optimization.</p><p>Rationale: the first wave of AI for Science broke through at the software layer (AlphaFold and its kin); SDL is its <strong>principal vehicle into the physical laboratory</strong>.</p><p>Evidence tags: [paper]/[official]/[media]/[preprint]/[analysis]</p></div>
+<h2 class="section">0. Bottom Line</h2>
+<p><strong>The analogy has long been established — the very term "self-driving lab" is borrowed from the self-driving car; but no systematic work exists that transposes the Tesla architecture element by element onto SDL (an open narrative niche).</strong> Once Tesla's thinking is decomposed into two layers, the assessment becomes clear:</p>
+<ul>
+<li><strong>Systems-engineering layer</strong> (data engine, unified telemetry, shadow mode, intervention rate as the north-star metric, canary releases, distillation push-down, layered safety): the transfer <strong>holds universally</strong>, and the SDL field is spontaneously reinventing it — the ten-year SDL review in Nature Reviews Chemistry frames the next phase around three requirements, <strong>scalability / generalizability / provenance-complete experimentation</strong> [paper], which is almost a research-context translation of the data-engine philosophy.</li>
+<li><strong>Learning-paradigm layer</strong> (end-to-end imitation learning over massive homogeneous data): <strong>partially holds today</strong>, with three constraints (absence of fleet data, an objective that rewards out-of-distribution outcomes, expensive ground-truth validation) each having a dynamic path to dissolution (§4) — these are time-indexed constraints, not laws.</li>
+</ul>
+<p>At the open-source-artifact level, what is genuinely valuable is Tesla's <strong>two "specifications"</strong> (the fleet-telemetry telemetry architecture and the vehicle-command signed command protocol) rather than the code; equally important are the <strong>five anti-patterns</strong> — the lessons from Tesla's development each have a counterpart in the research context.</p>
+<h2 class="section">1. Systems-Engineering Layer: Transferability Assessment for Eight Mechanisms</h2>
+<div class="table-wrap"><table class="t1"><colgroup><col style="width:5%"><col style="width:18%"><col style="width:32%"><col style="width:13%"><col style="width:32%"></colgroup><thead><tr><th>#</th><th>Tesla mechanism</th><th>State of the SDL field (2026-08)</th><th>Assessment</th><th>Implementation action</th></tr></thead><tbody>
+<tr><td class="num"><span class="rownum">1</span></td><td><strong>Data engine / fleet learning</strong>: large-scale collection → automatic hard-case mining → training → OTA deployment → collect again</td><td>Closed-loop active learning is the defining core of an SDL [paper: Chem. Rev. 2024]; multi-lab "fleets" already have hard cases: <strong>ACDC</strong> (Science 2024 — five labs across three continents sharing a single cloud AI brain in asynchronous closed loop, discovering 21 organic laser materials) [paper]; the Acceleration Consortium spans 30+ labs worldwide with CAD 200 million [official]; NSF plans to invest USD 100 million to build a national network of cloud labs [official]. An SDL fleet sharing model weights federated-learning style: not yet seen</td><td><span class="badge good">✅ Valid and partly validated</span></td><td>Feeding closed-loop results back is already a mini data engine; add <strong>hard-case mining</strong> (the campaign-trigger idea): samples that are surprising, high-uncertainty, or subject to large model disagreement are automatically flagged as priority characterization targets for the next round, rather than sampling uniformly</td></tr>
+<tr><td class="num"><span class="rownum">2</span></td><td><strong>Unified telemetry schema</strong>: a single company's unified protobuf over hundreds of signals, config-driven, change-triggered</td><td>Standards have not converged in science: ESAMP (event-sourced provenance, &gt;6 million measurements in production) / MaRDA / domain ontologies (BattINFO for batteries, ORD for chemistry, etc.) coexist [paper] — single company vs. many institutions is the biggest structural difference. Reviews already list provenance-completeness as one of the three requirements for the next phase, and "schema first" has been elevated to field-wide consensus</td><td><span class="badge good">✅ High-value entry point</span></td><td><strong>Tesla-style unification is entirely achievable within a single lab</strong>: define your own experimental data schema on day one (choose the ontology per domain; model provenance structure on ESAMP's three entities — its structure is domain-agnostic), with one chain covering each sample's full lifecycle. This is the engineering precondition for extracting value from proprietary data</td></tr>
+<tr><td class="num"><span class="rownum">3</span></td><td><strong>Shadow mode</strong>: a new model "computes but does not control," comparing old vs. new decisions for divergence in real scenarios</td><td>No systematically named practice; scattered equivalents: digital-twin dry runs [paper], offline closed-loop benchmarks (MADE, ICML 2026) [paper], graded human-in-the-loop controls [paper]</td><td><span class="badge warn">🟡 Open niche (claimable; equivalents exist but are scattered, closed-loop value unproven)</span></td><td>Add a <strong>shadow switch</strong>: log the planner's recommendation each round in parallel with the human's choice, recording divergences only without taking effect, and periodically reconcile which reached the goal faster. The divergence ledger also naturally generates <strong>paired preference data</strong> (human choice vs. agent proposal), which is training feedstock for later RL fine-tuning — shadow mode is simultaneously a validation tool and a data source</td></tr>
+<tr><td class="num"><span class="rownum">4</span></td><td><strong>Intervention rate as north star</strong>: miles between interventions as the single operational metric running through everything (this text uses “intervention rate” in the inverse direction — lower is better)</td><td>The field has a six-level autonomy taxonomy (modeled on SAE J3016) [paper: Nat. Rev. Chem. 2025], but <strong>levels are static labels and lack a continuous operational curve</strong></td><td><span class="badge good">✅ Open niche (claimable; the mechanism is fully validated on Tesla's side — the SDL field merely lacks the practice)</span></td><td>Define "experiments per intervention / closed-loop rounds per intervention" and start measuring on day one. It doubles as a model-quality metric, a trust-building narrative, and an anchor for external communication (anchor publicly on the intervention-rate curve rather than "fully autonomous," which avoids overclaiming risk)</td></tr>
+<tr><td class="num"><span class="rownum">5</span></td><td><strong>Three-layer safety architecture</strong>: physical separation of decision and actuation, fail-safe</td><td>Academia is already borrowing automotive safety concepts explicitly: Safe-SDL introduces ODD/SOTIF + control barrier functions [preprint]; the LAP protocol states outright that physical interlocks are the last line of defense [preprint]; labs benchmark against PLe/SIL3 (ISO 13849 / IEC 62061) rather than ASIL-D</td><td><span class="badge good">✅ Ready-made standards path exists</span></td><td>① decision-making AI never connects directly to actuators; ② hazard sources get independent hardware limits beyond software; ③ the emergency-stop circuit passes through no software; ④ where there is no risk to life, fail-safe suffices — no need to pay the redundancy cost of fail-operational. When moving across domains, swap in domain-appropriate hazard analysis (BSL levels on the biology side); the principles are unchanged</td></tr>
+<tr><td class="num"><span class="rownum">6</span></td><td><strong>Two-stage imitation → reinforcement</strong>: fleet demonstrations as the base, simulation + rewards for refinement</td><td>Corresponding forms exist: warm-starting BO from literature/historical data (the imitation stage) + simulator-in-the-loop (a safe practice ground for the reinforcement stage) [paper]</td><td><span class="badge good">✅ Already implicit in the closed loop</span></td><td>Name the two stages explicitly and measure each separately. <strong>Revaluation</strong>: obtaining "the execution ability of an average scientist" via imitation learning is not a shortcoming but a milestone — training one average human scientist ≈ 20+ years of education + 5–7 years of PhD/postdoc + hundreds of thousands of dollars, and it cannot be copied; a model at the same execution level has a marginal replication cost approaching zero, runs 24/7, can be distilled, and can be federated. Imitation solves the <strong>scale problem</strong>, exploration objectives solve the <strong>frontier problem</strong> — additive, not substitutive</td></tr>
+<tr><td class="num"><span class="rownum">7</span></td><td><strong>Distillation push-down</strong>: v14 Lite distills behavior developed on new hardware into the compute/sensor configuration of older hardware (wide release 2026-07) [media]</td><td>The SDL field already has the <strong>frugal twin</strong> concept (low-cost replicas), but lacks systematic practice for "main-platform policy → frugal twin"</td><td><span class="badge good">✅ Direction just validated in engineering</span></td><td>Distill the policy learned on the main platform into low-cost replicas and replicate laterally to a second and third workstation — the starting point of "from one car to a fleet"</td></tr>
+<tr><td class="num"><span class="rownum">8</span></td><td><strong>Canary releases</strong>: &lt;0.1% of the fleet goes first, with telemetry-gated ramp-up</td><td>No corresponding practice in SDL</td><td><span class="badge good">✅ Copy directly</span></td><td>Version the planner policy + pilot at a single site + gate the full rollout on metrics; engineering effort is near zero</td></tr>
+</tbody></table></div>
+<h2 class="section">2. The Anti-Pattern List: Five Things Not to Copy Over</h2>
+<ol>
+<li><strong>Be cautious about going all-in on end-to-end</strong>. Tesla's end-to-end approach raises the ceiling on capability but drives up validation cost (the validation layer is the weakest link). SDL stacks as they exist today are already modular + LLM agent orchestration; pure end-to-end (raw spectra → single large model → experimental decision) has no deployed system yet, and science demands mechanistic interpretability. → Keep a modular pipeline as the starting point; but note that Tesla's own trajectory was "end-to-end first, then layer RL fine-tuning on top" — the evolutionary path for SDL is not "modular forever" but <strong>modular + module-by-module neural replacement</strong>, with the pace of replacement set by validation cost (§4, Constraint 3).</li>
+<li><strong>Beware of sacrificing ground-truth sources to cut costs</strong>. Tesla's vision-only path removed radar and ultrasonics, yet the validation phase still used lidar for ground-truth calibration. The isomorphic risk in research: cutting high-fidelity anchoring / in situ characterization to save money and trusting only cheap proxy metrics — cheap proxies can systematically overestimate performance (Goodhart's law). → High-fidelity anchoring is not optional; it is the ground-truth channel that keeps the system from "efficiently going off course."</li>
+<li><strong>Hold marketing claims to strict verification</strong>. Spec-sheet numbers are broadly credible, multiplier claims cherry-pick their baselines, and timelines should be discounted by historical delivery rates. The same holds on the research side: one autonomous synthesis effort claiming "41 new compounds synthesized in 17 days" (Nature 2023) drew peer discussion over novelty and characterization standards, and the authors issued a correction in 2026-01 [paper+media]. → When reading output numbers in SDL papers, first run them through three gates: "predicted → synthesized → useful."</li>
+<li><strong>Be cautious about capability promises that "future software will unlock"</strong>. When procuring instruments or robotic platforms, price at zero any portion the vendor promises will "be unlocked by a later AI feature upgrade."</li>
+<li><strong>Vertical integration is not dogma (the Dojo lesson)</strong>. In 2025-08 Tesla abandoned its in-house training chip and moved to external suppliers [media]. → <strong>Vertically integrate on the data loop, not on compute or robot hardware itself</strong>: an SDL team's money should go into telemetry and the data engine, not into in-house hardware.</li>
+</ol>
+<h2 class="section">3. Open-Source Reference Material (Three Sides)</h2>
+<h3 class="subsection">3a. Tesla's Own Repositories (7 items, verified by reading the primary sources)</h3>
+<div class="table-wrap"><table class="t3"><colgroup><col style="width:13%"><col style="width:18%"><col style="width:12%"><col style="width:57%"></colgroup><thead><tr><th>Repository</th><th>License / Activity</th><th>Verdict</th><th>Reference Value</th></tr></thead><tbody>
+<tr><td><strong>vehicle-command</strong></td><td>Apache-2.0, active</td><td><span class="badge good"><strong>Design reference · highest value</strong></span></td><td><code>pkg/protocol/protocol.md</code> is a ready-made specification (with test vectors) for the principle that "an AI agent may drive physical devices only through signed commands": ECDH session keys + commands bound to device identity / epoch / monotonic counter / expiry + key-role separation of privilege (read-only vs. limited-action, mapping directly onto "the acquisition agent must not touch actuators") + physical-presence key enrollment. A prompt-injected LLM cannot forge a valid counter/MAC. Can serve as a reference blueprint for a laboratory command-authentication layer</td></tr>
+<tr><td><strong>fleet-telemetry</strong></td><td>Apache-2.0, very active</td><td><span class="badge good"><strong>Design reference</strong></span></td><td>Device mTLS direct push + fan-out to multiple buses by record type + ack bound to durable write + server-pushed signed acquisition configuration (field set + minimum interval, change-triggered) — structurally identical to "instrument → data lake." Use as reference architecture to rewrite a thin server; do not fork</td></tr>
+<tr><td><strong>dashcam</strong></td><td>No license</td><td><span class="badge warn">Approach reference only, not usable</span></td><td>Telemetry protobuf embedded frame-by-frame in video SEI → hard synchronization between experiment recordings and sensor data. Build your own with ffmpeg/GStreamer</td></tr>
+<tr><td><strong>fixed-containers</strong></td><td>MIT, active</td><td><span class="badge good">Usable</span></td><td>C++20 heap-free deterministic containers; drop-in for in-house instrument firmware</td></tr>
+<tr><td><strong>liblithium</strong></td><td>Apache-2.0, low frequency</td><td><span class="badge good">Usable</span></td><td>Signed firmware updates, extremely resource-frugal; standard algorithms must be substituted for compliance interoperability</td></tr>
+<tr><td><strong>ttpoe</strong></td><td>No LICENSE, unmaintained</td><td><span class="badge mut">Not relevant</span></td><td>Problem domain differs by 5–7 orders of magnitude; TCP/MQTT is sufficient</td></tr>
+<tr><td><strong>buildroot / linux</strong></td><td>Mixed GPL</td><td><span class="badge mut">Not relevant</span></td><td>No delta relative to upstream; use upstream Buildroot LTS/Yocto</td></tr>
+</tbody></table></div>
+<div class="callout note"><p>Incidental lesson: the fleet-telemetry vulnerability GO-2026-5553 (compromised credentials for one vehicle could impersonate other vehicles and forge telemetry) — <strong>device identity must be bound into the transport credential and validated on every record</strong>; the self-reported identity field in the payload cannot be trusted. Laboratory analogue: bind instrument data to the instrument certificate.</p></div>
+<h3 class="subsection">3b. Open-Source Stand-Ins for Tesla's Architectural Philosophy (Tesla does not open-source the models or the data engine itself, so look at these)</h3>
+<ul>
+<li><strong>comma.ai openpilot</strong>: the readable full stack closest to the FSD philosophy — a complete open-source implementation of end-to-end small models, a fleet data engine, intervention-signal collection, and canary releases. This is the reference for how a data engine is actually written as code.</li>
+<li><strong>LeRobot (Hugging Face)</strong>: the most active open-source vehicle for "intervention as annotation + imitation-learning infrastructure" in the embodied domain, directly adjacent to the SDL robotic execution layer.</li>
+<li><strong>Academic end-to-end reproduction lineage</strong> (UniAD/VAD → Large Driving Models surveys): for understanding the engineering boundaries of "end-to-end."</li>
+</ul>
+<h3 class="subsection">3c. Open-Source Stack Directly Buildable on the SDL Side</h3>
+<div class="table-wrap"><table class="t3"><colgroup><col style="width:14%"><col style="width:22%"><col style="width:64%"></colgroup><thead><tr><th>Layer</th><th>Tesla Counterpart</th><th>Open-Source Components (as of 2026-08)</th></tr></thead><tbody>
+<tr><td><strong>Orchestration / OS</strong></td><td>Vehicle software stack</td><td><strong>MADSci</strong> (Argonne, domain-agnostic microservices, JOSS 2026 — first choice for cross-domain requirements); ARES OS 2.0 (low-code, already spanning additive manufacturing / wet chemistry / CVD); ChemOS 2.0; Bluesky (large-scale scientific facilities); UniLabOS (AI-native, aggressive option)</td></tr>
+<tr><td><strong>Device protocols</strong></td><td>CAN / telemetry</td><td>SiLA2, OPC-UA, MQTT, ROS; experiment description language XDL; multi-laboratory network FINALES; master index awesome-self-driving-labs (Acceleration Consortium)</td></tr>
+<tr><td><strong>Decision / planner</strong></td><td>Planning network</td><td>BoTorch/Ax, Atlas/Phoenics, BayBE (BO remains the workhorse of closed loops)</td></tr>
+<tr><td><strong>Agent</strong></td><td>End-to-end network (the role here is "researcher," not "driver")</td><td>Coscientist, ChemCrow, the Virtual Lab family; on the biology side, LLM + multi-agent + RAG + MCP has already become an established system</td></tr>
+<tr><td><strong>Simulation / world model</strong></td><td>Neural simulator</td><td>First-principles simulation (DFT/MD/PDE/metabolic models) + open datasets (OMat24/OMol25, etc.) to train surrogates — <strong>at this layer the scientific starting point is higher than in driving</strong></td></tr>
+</tbody></table></div>
+<h2 class="section">4. Learning-Paradigm Layer: Dynamic Pathways for Dissolving the Three Constraints</h2>
+<p>The preconditions for end-to-end imitation learning (massive homogeneous data + in-distribution objectives + cheap ground truth) do not fully hold on the research side today, but all three constraints are <strong>time-indexed</strong>, and each has its own dissolution mechanism. The framing is not "holds / does not hold," but "what holds today, and under what conditions the rest will hold."</p>
+<div class="table-wrap"><table class="t3"><colgroup><col style="width:26%"><col style="width:44%"><col style="width:30%"></colgroup><thead><tr><th>Constraint (as of 2026)</th><th>Dissolution mechanism</th><th>Trigger condition / milestone</th></tr></thead><tbody>
+<tr><td><strong>No fleet data</strong>: tens of thousands of tasks × tens to thousands of expensive data points per task</td><td>The research fleet <strong>has to be built</strong>: unified provenance standards + federated networks (ACDC has already demonstrated five labs across continents sharing one brain) + cloud-lab aggregation; robot throughput is 1–2 orders of magnitude higher than humans, so accumulation is nonlinear</td><td>The product of three factors—number of networked sites × per-site throughput × cross-site data trust—crosses a threshold; compare Tesla, which only began fleet learning in 2016</td></tr>
+<tr><td><strong>The objective rewards out-of-distribution outcomes</strong>: scientific value lies out of distribution, while imitation matches the distribution</td><td>Layered stacking: imitation learning lays the floor of "average execution capability" (§1.6, value reassessment), on top of which you stack information-gain / Bayesian-surprise exploration objectives + RL-from-experiment-feedback; Tesla itself moved from pure imitation to RL fine-tuning</td><td>Exploration objectives require cheap validation—interlocked with the next row, and loosens together with it</td></tr>
+<tr><td><strong>Ground-truth validation is expensive and contestable</strong></td><td>Validation is itself the kind of narrow-domain task SDL platforms are best at, and the cost of automated replication falls monotonically as they scale out; provenance-complete logs reduce third-party review from "redo the experiment" to "replay the log"</td><td>The cost of "automatically replicating one result" &lt; the cost of human peer review of one paper</td></tr>
+</tbody></table></div>
+<div class="callout vision"><p><strong>Endgame vision (a design pull, not a prediction)</strong>: a globally federated "science fleet"—every experiment (run by a human or by a machine) is a "drive" with complete telemetry, feeding into a shared scientific policy; a new lab joins and immediately inherits the network-wide prior, while its local data flows back to improve the global model; "average-scientist execution capability" becomes infrastructure like electricity, and human scientists collectively move up the stack to problem selection, objective setting, and out-of-distribution judgment. Every increment of implementation is checked against one criterion: <strong>does it advance monotonically toward this endgame</strong>.</p></div>
+<h2 class="section">5. Implementation Path: Six Steps (First Three Require Zero Hardware Investment)</h2>
+<ol>
+<li><strong>Telemetry first</strong>: every experiment run in the existing lab (including human-run ones) → provenance-complete structured logs (parameters / raw data / analysis code / conclusions / <strong>every human veto and revision, with rationale</strong>). Finalize the schema before any hardware procurement.</li>
+<li><strong>Intervention rate as the north star</strong>: define and begin measuring "experiments per intervention" from day one.</li>
+<li><strong>Shadow mode</strong>: for every real experiment, have the planner propose in parallel without executing; maintain a divergence ledger + counterfactual-gain reconciliation, while accumulating pairwise preference data.</li>
+<li><strong>Narrow-domain closed loop</strong>: pick the campaign with the clearest, least ambiguous success signal (reaction yield / protein expression level / strain titer / device efficiency — the sole criterion: signal clarity), with humans retaining the kill switch; assess the safety layer against the LAP three-tier framework + IEC 61010-2-081 + ISO 13849 PL; base command authentication on vehicle-command specifications (key enrollment + role separation + replay protection).</li>
+<li><strong>Distillation and replication</strong>: main-platform policy → frugal twin, then replicate horizontally to a second and third workstation (the v14 Lite route).</li>
+<li><strong>Federation</strong>: share models and provenance data across multiple sites (the networked direction of FINALES/MADSci), realize fleet learning, and converge toward the endgame in §4.</li>
+</ol>
+<h2 class="section">6. Open Narrative Niches</h2>
+<ol>
+<li><strong>Explicitly systematizing "Tesla data-engine elements → SDL"</strong>: name analogies and data-flywheel rhetoric have long been in vogue, but an element-by-element mapping (collection schema / hard-case triggers / shadow validation / intervention rate / safety tiering / two-stage learning / distillation push-down / canary releases) has yet to be systematically assembled in any paper or white paper — this article is a first draft of one.</li>
+<li><strong>Naming and pipelining an SDL-flavored "shadow mode"</strong>: existing equivalents are scattered and unsystematized; no one has named the pipeline in which "a new policy only recommends rather than executes, runs in parallel with humans for reconciliation, and the disagreement ledger doubles as preference data" — small engineering effort, obvious methodological value.</li>
+<li><strong>Intervention rate as a unified SDL operational metric</strong>: a continuous curve beyond the six-level autonomy grading — nobody is using it.</li>
+</ol>
+<h2 class="section">7. Key Sources</h2>
+<ul>
+<li><strong>SDL precedents and reviews</strong>: Nature Reviews Chemistry, "The past, present and future of self-driving laboratories" (2026, s41570-026-00847-2); Chem. Rev. 2024 SDL review (acs.chemrev.4c00055); Science 2024 ACDC (10.1126/science.adk9227); A-Lab Nature 2023 (s41586-023-06734-w) + C&amp;EN 2026-01 author correction; ESAMP (Digital Discovery 2023); MaRDA (MRS Bulletin 2025); ORD (JACS 2021); digital twins (Nat. Comput. Sci. 2025); MADE benchmark (arXiv:2601.20996); networked-laboratory roadmap (arXiv:2506.17510).</li>
+<li><strong>Orchestration / open-source stack</strong>: MADSci (JOSS 2026, 10.21105/joss.09416); ARES OS 2.0 (arXiv:2604.03440); ChemOS 2.0 (Matter 2024); UniLabOS (arXiv:2512.21766); awesome-self-driving-labs (Acceleration Consortium).</li>
+<li><strong>Tesla side</strong>: teslamotors/{fleet-telemetry, vehicle-command, dashcam, fixed-containers, liblithium, ttpoe, buildroot, linux} read directly from source; pkg.go.dev GO-2026-5553; FSD v14 Lite wide release coverage (2026-07); Dojo pivot coverage (2025-08); Large Driving Models review (arXiv:2603.16050); openpilot (github.com/commaai/openpilot); LeRobot (github.com/huggingface/lerobot).</li>
+<li><strong>Safety</strong>: Nat. Rev. Chem. 2025, "Steering towards safe self-driving laboratories"; Safe-SDL (arXiv:2602.15061); LAP (arXiv:2606.03755); IEC 61010-2-081, ISO 13849-1/IEC 62061, ISO 10218:2025; LabSafety Bench (NMI 2025).</li>
+<li><strong>Honest boundaries</strong>: some in-paper figures were taken from the search-summary layer; items marked [paper] have been cross-verified against multiple sources, while for items marked [preprint] we recommend checking the original text before citing; the same applies to all key figures.</li>
+</ul>
+
+<div class="license">This article is released under the <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> license. Reuse and adaptation require attribution and sharing under the same terms.</div>
+</div>
+</main>
+<script>
+function setLang(l){
+  document.documentElement.setAttribute('lang', l);
+  document.title = (l==='en') ? "Tesla's Autonomy Architecture → Self-Driving Labs" : "特斯拉架构思想 → 自驱动实验室 Self-Driving Labs";
+  document.getElementById('btn-zh').classList.toggle('active', l!=='en');
+  document.getElementById('btn-en').classList.toggle('active', l==='en');
+  try{localStorage.setItem('brief-lang', l);}catch(e){}
+}
+setLang((function(){
+  try{var s=localStorage.getItem('brief-lang'); if(s) return s;}catch(e){}
+  return (navigator.language||'').toLowerCase().startsWith('zh') ? 'zh-CN' : 'en';
+})());
+</script>
+</body>
+</html>
